@@ -1,0 +1,200 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+
+#define MAX_PALAVRA 100
+#define MAX_TENTATIVAS 6
+#define MAX_JOGADORES 10
+#define RANKING_FILE "ranking.txt"
+
+// Estrutura para armazenar as informações dos jogadores
+typedef struct {
+    char nome[50];
+    int pontuacao;
+} Jogador;
+
+// Declaração das funções
+void escolher_palavra(char *palavra, int dificuldade);
+void mostrar_forca(int tentativas);
+void carregar_ranking(Jogador ranking[], int *quantidade);
+void salvar_ranking(Jogador ranking[], int quantidade);
+void atualizar_ranking(Jogador ranking[], int *quantidade, Jogador jogador);
+
+int main() {
+    // Variáveis do jogo
+    char palavra[MAX_PALAVRA], palavra_oculta[MAX_PALAVRA] = {0};
+    char chutes[MAX_PALAVRA] = {0};
+    int dificuldade, tentativas = 0, acertos = 0;
+    char chute;
+    Jogador jogador;
+    Jogador ranking[MAX_JOGADORES];
+    int quantidade_ranking = 0;
+
+    // Carrega o ranking do arquivo
+    carregar_ranking(ranking, &quantidade_ranking);
+
+    // Entrada do nome do jogador
+    printf("Bem-vindo ao Jogo da Forca!\n");
+    printf("Digite seu nome: ");
+    scanf("%49s", jogador.nome); // Limita a entrada para evitar estouro de buffer
+
+    // Seleção de dificuldade
+    do {
+        printf("Escolha a dificuldade:\n");
+        printf("1. Fácil\n");
+        printf("2. Médio\n");
+        printf("3. Difícil\n");
+        printf("Digite sua escolha: ");
+        scanf("%d", &dificuldade);
+    } while (dificuldade < 1 || dificuldade > 3); // Garante entrada válida
+
+    // Escolhe a palavra com base na dificuldade
+    escolher_palavra(palavra, dificuldade);
+
+    // Inicializa a palavra oculta
+    int tamanho_palavra = strlen(palavra);
+    for (int i = 0; i < tamanho_palavra; i++) {
+        palavra_oculta[i] = '_';
+    }
+
+    // Loop principal do jogo
+    while (tentativas < MAX_TENTATIVAS && acertos < tamanho_palavra) {
+        printf("\nPalavra: %s\n", palavra_oculta);
+        mostrar_forca(tentativas);
+        printf("Chutes anteriores: %s\n", chutes);
+        printf("Digite uma letra: ");
+        scanf(" %c", &chute);
+        chute = tolower(chute);
+
+        // Verifica se a letra já foi chutada
+        if (strchr(chutes, chute)) {
+            printf("Você já chutou essa letra!\n");
+            continue;
+        }
+
+        // Adiciona a letra aos chutes
+        strncat(chutes, &chute, 1);
+
+        // Verifica se a letra está na palavra
+        int encontrou = 0;
+        for (int i = 0; i < tamanho_palavra; i++) {
+            if (palavra[i] == chute) {
+                palavra_oculta[i] = chute;
+                acertos++;
+                encontrou = 1;
+            }
+        }
+
+        // Se a letra não foi encontrada, incrementa as tentativas
+        if (!encontrou) {
+            tentativas++;
+        }
+    }
+
+    // Resultado do jogo e pontuação
+    if (acertos == tamanho_palavra) {
+        printf("\nParabéns, %s! Você venceu! A palavra era %s\n", jogador.nome, palavra);
+        jogador.pontuacao = (MAX_TENTATIVAS - tentativas) * 10;
+    } else {
+        printf("\nVocê perdeu! A palavra era %s\n", palavra);
+        jogador.pontuacao = 0;
+    }
+
+    // Atualiza e salva o ranking
+    atualizar_ranking(ranking, &quantidade_ranking, jogador);
+    salvar_ranking(ranking, quantidade_ranking);
+
+    // Exibe o ranking
+    printf("\nRanking:\n");
+    for (int i = 0; i < quantidade_ranking; i++) {
+        printf("%d. %s - %d pontos\n", i + 1, ranking[i].nome, ranking[i].pontuacao);
+    }
+
+    return 0;
+}
+
+// Função para escolher uma palavra com base na dificuldade
+void escolher_palavra(char *palavra, int dificuldade) {
+    const char *palavras_faceis[] = {"casa", "gato", "bola"};
+    const char *palavras_medias[] = {"carro", "caneta", "cachorro"};
+    const char *palavras_dificeis[] = {"elefante", "helicoptero", "computador"};
+
+    srand(time(NULL));
+    switch (dificuldade) {
+        case 1:
+            strcpy(palavra, palavras_faceis[rand() % 3]);
+            break;
+        case 2:
+            strcpy(palavra, palavras_medias[rand() % 3]);
+            break;
+        case 3:
+            strcpy(palavra, palavras_dificeis[rand() % 3]);
+            break;
+        default:
+            strcpy(palavra, palavras_faceis[rand() % 3]);
+            break;
+    }
+}
+
+// Função para mostrar o estado da forca
+void mostrar_forca(int tentativas) {
+    printf("  ___\n");
+    printf(" |   |\n");
+    printf(" %s   |\n", (tentativas > 0) ? " O" : "  ");
+    printf("%s%s%s  |\n", (tentativas > 1) ? "/" : " ", (tentativas > 2) ? "|" : " ", (tentativas > 3) ? "\\" : " ");
+    printf("%s %s  |\n", (tentativas > 4) ? "/" : " ", (tentativas > 5) ? "\\" : " ");
+    printf("     |\n");
+    printf("  ___|\n");
+}
+
+// Função para carregar o ranking do arquivo
+void carregar_ranking(Jogador ranking[], int *quantidade) {
+    FILE *arquivo = fopen(RANKING_FILE, "r");
+    if (arquivo != NULL) {
+        while (fscanf(arquivo, "%49s %d", ranking[*quantidade].nome, &ranking[*quantidade].pontuacao) != EOF) {
+            (*quantidade)++;
+        }
+        fclose(arquivo);
+    }
+}
+
+// Função para salvar o ranking no arquivo
+void salvar_ranking(Jogador ranking[], int quantidade) {
+    FILE *arquivo = fopen(RANKING_FILE, "w");
+    if (arquivo != NULL) {
+        for (int i = 0; i < quantidade; i++) {
+            fprintf(arquivo, "%s %d\n", ranking[i].nome, ranking[i].pontuacao);
+        }
+        fclose(arquivo);
+    }
+}
+
+// Função para atualizar o ranking com a nova pontuação do jogador
+void atualizar_ranking(Jogador ranking[], int *quantidade, Jogador jogador) {
+    // Se há espaço no ranking, adiciona o novo jogador
+    if (*quantidade < MAX_JOGADORES) {
+        ranking[*quantidade] = jogador;
+        (*quantidade)++;
+    } else {
+        // Substitui o jogador com menor pontuação, se a nova pontuação for maior
+        for (int i = 0; i < *quantidade; i++) {
+            if (jogador.pontuacao > ranking[i].pontuacao) {
+                ranking[i] = jogador;
+                break;
+            }
+        }
+    }
+
+    // Ordena o ranking em ordem decrescente de pontuação
+    for (int i = 0; i < *quantidade - 1; i++) {
+        for (int j = i + 1; j < *quantidade; j++) {
+            if (ranking[j].pontuacao > ranking[i].pontuacao) {
+                Jogador temp = ranking[i];
+                ranking[i] = ranking[j];
+                ranking[j] = temp;
+            }
+        }
+    }
+}
